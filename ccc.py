@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
+import spacy
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+
+# --- Load spaCy NLP Model ---
+nlp = spacy.load("en_core_web_sm")
 
 # --- Knowledge Base ---
 data = {
@@ -28,24 +32,24 @@ data = {
         "What are some recommended books for CLAT preparation?",
     ],
     "answer": [
-        "The syllabus includes English Language, Current Affairs (including General Knowledge), Legal Reasoning, Logical Reasoning, and Quantitative Techniques. :contentReference[oaicite:0]{index=0}",
-        "There are 22-26 questions in the English Language section. :contentReference[oaicite:1]{index=1}",
-        "In 2024, the general category cut-off for NLSIU Bangalore was around 85 marks. :contentReference[oaicite:2]{index=2}",
-        "Subjects include English Language, Current Affairs, Legal Reasoning, Logical Reasoning, and Quantitative Techniques. :contentReference[oaicite:3]{index=3}",
-        "The CLAT exam duration is 2 hours. :contentReference[oaicite:4]{index=4}",
-        "There are 120 questions in total in CLAT. :contentReference[oaicite:5]{index=5}",
-        "Yes, there is a negative marking of 0.25 marks for each wrong answer. :contentReference[oaicite:6]{index=6}",
-        "Each correct answer awards 1 mark, and each incorrect answer deducts 0.25 marks. :contentReference[oaicite:7]{index=7}",
-        "The CLAT 2025 exam is scheduled for December 1, 2024. :contentReference[oaicite:8]{index=8}",
-        "Candidates must have completed 10+2 or equivalent with a minimum of 45% marks (40% for SC/ST). :contentReference[oaicite:9]{index=9}",
-        "You can apply for CLAT 2025 through the official website of the Consortium of NLUs. :contentReference[oaicite:10]{index=10}",
-        "The application fee is INR 4,000 for General/OBC/PWD/NRI candidates and INR 3,500 for SC/ST/BPL candidates. :contentReference[oaicite:11]{index=11}",
-        "Yes, the number of questions has been reduced to 120, and the focus is on comprehension-based questions. :contentReference[oaicite:12]{index=12}",
-        "CLAT scores are accepted by 22 National Law Universities (NLUs) across India. :contentReference[oaicite:13]{index=13}",
-        "There is no upper age limit for appearing in CLAT. :contentReference[oaicite:14]{index=14}",
-        "Yes, candidates who have completed Class 12 or equivalent are eligible to appear for CLAT. :contentReference[oaicite:15]{index=15}",
-        "The CLAT exam is conducted in offline mode (pen and paper-based). :contentReference[oaicite:16]{index=16}",
-        "Yes, CLAT follows the reservation policies as per government norms and individual NLU policies. :contentReference[oaicite:17]{index=17}",
+        "The syllabus includes English Language, Current Affairs (including General Knowledge), Legal Reasoning, Logical Reasoning, and Quantitative Techniques.",
+        "There are 22-26 questions in the English Language section.",
+        "In 2024, the general category cut-off for NLSIU Bangalore was around 85 marks.",
+        "Subjects include English Language, Current Affairs, Legal Reasoning, Logical Reasoning, and Quantitative Techniques.",
+        "The CLAT exam duration is 2 hours.",
+        "There are 120 questions in total in CLAT.",
+        "Yes, there is a negative marking of 0.25 marks for each wrong answer.",
+        "Each correct answer awards 1 mark, and each incorrect answer deducts 0.25 marks.",
+        "The CLAT 2025 exam is scheduled for December 1, 2024.",
+        "Candidates must have completed 10+2 or equivalent with a minimum of 45% marks (40% for SC/ST).",
+        "You can apply for CLAT 2025 through the official website of the Consortium of NLUs.",
+        "The application fee is INR 4,000 for General/OBC/PWD/NRI candidates and INR 3,500 for SC/ST/BPL candidates.",
+        "Yes, the number of questions has been reduced to 120, and the focus is on comprehension-based questions.",
+        "CLAT scores are accepted by 22 National Law Universities (NLUs) across India.",
+        "There is no upper age limit for appearing in CLAT.",
+        "Yes, candidates who have completed Class 12 or equivalent are eligible to appear for CLAT.",
+        "The CLAT exam is conducted in offline mode (pen and paper-based).",
+        "Yes, CLAT follows the reservation policies as per government norms and individual NLU policies.",
         "Focus on understanding principles of law, practice reading comprehension, and solve previous year papers.",
         "Some recommended books include 'Legal Aptitude for the CLAT and other Law Entrance Examinations' by A.P. Bhardwaj and 'Objective Legal Aptitude' by R.S. Aggarwal.",
     ]
@@ -53,20 +57,28 @@ data = {
 
 df_qa = pd.DataFrame(data)
 
-# --- Search Logic ---
+# --- Preprocessing Function using spaCy ---
+def preprocess(text):
+    doc = nlp(text.lower())
+    tokens = [token.lemma_ for token in doc if not token.is_stop and token.is_alpha]
+    return " ".join(tokens)
+
+# --- Vector Search Function ---
 def get_response(query, df):
+    processed_questions = df["question"].apply(preprocess)
+    processed_query = preprocess(query)
+
     vectorizer = TfidfVectorizer()
-    tfidf_matrix = vectorizer.fit_transform(df["question"])
-    
-    query_vec = vectorizer.transform([query])
+    tfidf_matrix = vectorizer.fit_transform(processed_questions)
+    query_vec = vectorizer.transform([processed_query])
+
     similarity = cosine_similarity(query_vec, tfidf_matrix)
-    
     best_match_index = similarity.argmax()
+
     return df.iloc[best_match_index]["answer"]
 
 # --- Streamlit UI ---
 st.set_page_config(page_title="CLAT Mentor Chatbot", page_icon="⚖️")
-
 st.title("⚖️ CLAT Mentor Chatbot")
 st.write("Ask me anything about CLAT exams!")
 
